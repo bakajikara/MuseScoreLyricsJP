@@ -1,6 +1,7 @@
 import MuseScore 3.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import "script.js" as Script
 
 MuseScore {
     version: "0.0.0"
