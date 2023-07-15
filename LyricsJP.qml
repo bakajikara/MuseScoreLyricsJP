@@ -34,6 +34,7 @@ MuseScore {
 
             onTextEdited: {
                 curScore.startCmd();
+                Script.applyLyricsToScore(text, 0);
                 curScore.endCmd();
             }
         }

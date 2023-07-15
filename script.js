@@ -44,3 +44,47 @@ function splitLyrics(lyrics) {
 
   return result;
 }
+
+function applyLyricsToScore(lyrics, verse) {
+  const lyricsList = splitLyrics(lyrics);
+  let processDataList = [];
+
+  if (curScore.selection.isRange) {
+    let selection = curScore.selection;
+    let cursor = curScore.newCursor();
+    cursor.track = selection.startStaff * 4;
+    cursor.rewind(Cursor.SELECTION_START);
+    while (cursor.segment && cursor.tick < selection.endSegment.tick + 1) {
+      if (cursor.element.type == Element.CHORD) {
+        processDataList.push( { track: cursor.track, startTick: cursor.tick } );
+        break;
+      }
+      cursor.next();
+    }
+  } else {
+    // TODO: ティックを取得
+    // for (var i in curScore.selection.elements) {
+    // }
+  }
+
+  for (const processData of processDataList) {
+    let cursor = curScore.newCursor();
+    cursor.track = processData.track;
+    cursor.rewindToTick(processData.startTick);
+    while (cursor.segment && lyricsList.length > 0) {
+      let lyrics = cursor.element.lyrics;
+      for (var i = 0; i < lyrics.length; i++) {
+        if (lyrics[i].verse == verse) {
+          cursor.element.remove(lyrics[i]);
+          i--;
+        }
+      }
+      if (cursor.element.type == Element.CHORD) {
+        let lyric = newElement(Element.LYRICS);
+        lyric.text = lyricsList.shift();
+        cursor.element.add(lyric);
+      }
+      cursor.next();
+    }
+  }
+}
