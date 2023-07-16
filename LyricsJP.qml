@@ -31,6 +31,7 @@ MuseScore {
             height: 32
 
             placeholderText: "ここに歌詞を入力"
+            selectByMouse: true
 
             onTextEdited: {
                 curScore.startCmd();
