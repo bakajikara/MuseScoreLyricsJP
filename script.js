@@ -7,8 +7,10 @@ function splitLyrics(lyrics) {
     { previous: /[ｦ-ﾝ]/, current: /[ｧ-ｮ]/}, // 小書き文字の一部は前の半角カタカナと結合
     { previous: /[ぁ-ゟァ-ヿｦ-ﾝ]/ , current: /[゙゚゛゜ﾞﾟ]/ }, // 濁点半濁点は前の仮名と結合
     { previous: /./, current: /[,.:;!?､｡、。：；！？]/ }, // 句読点や記号は前の文字と結合
-    { previous: /[‘“(（｢「『]/, current: /./ }, // 開き記号は後の文字と結合
-    { previous: /./, current: /[’”)）｣」』]/}, // 閉じ記号は前の文字と結合
+    { previous: /[‘“(（｢「『]/, current: /\S/ }, // 開き記号は後の文字と結合
+    { previous: /\S/, current: /[’”)）｣」』]/}, // 閉じ記号は前の文字と結合
+    { previous: /\S/, current: /[+＋]/ }, // プラス記号は前の文字と結合
+    { previous: /[+＋]/, current: /\S/ }, // プラス記号は後の文字と結合
   ];
 
   let result = [];
@@ -32,14 +34,14 @@ function splitLyrics(lyrics) {
       currentGroup += currentChar;
     } else {
       if (currentGroup != "") {
-        result.push(currentGroup);
+        result.push(currentGroup.replace(/[+＋]/g, "")); // currentGroupからプラス記号を除去して追加
       }
-      currentGroup = currentChar == " " ? "" : currentChar; // スペースの場合は追加しない
+      currentGroup = currentChar.replace(/\s/g, ""); // 空白文字の場合は追加しない
     }
   }
 
   if (currentGroup != "") {
-    result.push(currentGroup);
+    result.push(currentGroup.replace(/[+＋]/g, ""));
   }
 
   return result;
