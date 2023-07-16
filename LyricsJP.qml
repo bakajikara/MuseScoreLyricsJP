@@ -14,7 +14,7 @@ MuseScore {
     requiresScore: true
 
     width: 512
-    height: 32
+    height: 64
 
     onRun: {}
 
@@ -27,26 +27,91 @@ MuseScore {
             anchors.top: parent.top
             anchors.left: parent.left
 
-            width: parent.width - 100
+            width: parent.width
             height: 32
 
             placeholderText: "ここに歌詞を入力"
 
             onTextEdited: {
                 curScore.startCmd();
-                Script.applyLyricsToScore(text, 0);
+                Script.applyLyricsToScore(Script.splitLyrics(text), verseSelector.value, placementSelector.currentValue);
                 curScore.endCmd();
             }
         }
 
-        Button {
-            text: "確定"
+        SpinBox {
+            id: verseSelector
 
-            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+
+            width: 64
+            height: 32
+
+            from: 0
+            to: 999
+
+            textFromValue: function(value, locale) { return value + 1 + "番"; }
+            valueFromText: function(text, locale) { return parseInt(text) - 1; }
+
+            onValueModified: {
+                curScore.startCmd();
+                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.text), value, placementSelector.currentValue);
+                curScore.endCmd();
+            }
+        }
+
+        ComboBox {
+            id: placementSelector
+
+            anchors.bottom: parent.bottom
+            anchors.left: verseSelector.right
+
+            width: 96
+            height: 32
+            
+            textRole: "text"
+            valueRole: "value"
+
+            model: [
+                { value: null, text: "デフォルト" },
+                { value: Placement.ABOVE, text: "上" },
+                { value: Placement.BELOW, text: "下" }
+            ]
+            
+            onActivated: {
+                curScore.startCmd();
+                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.text), verseSelector.value, currentValue);
+                curScore.endCmd();
+            }
+        }
+        
+        Button {
+            id: cancelButton
+
+            anchors.bottom: parent.bottom
+            anchors.right: confirmButton.left
+
+            width: 64
+            height: 32
+
+            text: "取消"
+
+            onClicked: {
+                lyricsInput.text = "";
+            }
+        }
+
+        Button {
+            id: confirmButton
+
+            anchors.bottom: parent.bottom
             anchors.right: parent.right
 
-            width: 100
+            width: 64
             height: 32
+
+            text: "確定"
 
             onClicked: {
                 lyricsInput.text = "";

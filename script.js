@@ -45,8 +45,7 @@ function splitLyrics(lyrics) {
   return result;
 }
 
-function applyLyricsToScore(lyrics, verse) {
-  const lyricsList = splitLyrics(lyrics);
+function applyLyricsToScore(lyricsList, verse, placement) {
   let processDataList = [];
 
   if (curScore.selection.isRange) {
@@ -82,6 +81,10 @@ function applyLyricsToScore(lyrics, verse) {
       if (cursor.element.type == Element.CHORD) {
         let lyric = newElement(Element.LYRICS);
         lyric.text = lyricsList.shift();
+        lyric.verse = verse;
+        if (placement != null) {
+          lyric.placement = placement;
+        }
         cursor.element.add(lyric);
       }
       cursor.next();
