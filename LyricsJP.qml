@@ -57,6 +57,7 @@ MuseScore {
 
             onValueModified: {
                 curScore.startCmd();
+                Script.restorePreviousLyrics();
                 Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.text), value, placementSelector.currentValue);
                 curScore.endCmd();
             }
@@ -99,6 +100,9 @@ MuseScore {
             text: "取消"
 
             onClicked: {
+                curScore.startCmd();
+                Script.restorePreviousLyrics();
+                curScore.endCmd();
                 lyricsInput.text = "";
             }
         }
@@ -115,6 +119,7 @@ MuseScore {
             text: "確定"
 
             onClicked: {
+                Script.confirm();
                 lyricsInput.text = "";
             }
         }

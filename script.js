@@ -47,8 +47,8 @@ function splitLyrics(lyrics) {
   return result;
 }
 
-function applyLyricsToScore(lyricsList, verse, placement) {
-  let processDataList = [];
+function getTrackAndTick() {
+  let result = [];
 
   if (curScore.selection.isRange) {
     let selection = curScore.selection;
@@ -58,7 +58,7 @@ function applyLyricsToScore(lyricsList, verse, placement) {
       cursor.track = staff * 4;
       while (cursor.segment && cursor.tick < selection.endSegment.tick + 1) {
         if (cursor.element.type == Element.CHORD) {
-          processDataList.push( { track: cursor.track, startTick: cursor.tick } );
+          result.push( { track: cursor.track, startTick: cursor.tick } );
           break;
         }
         cursor.next();
@@ -69,37 +69,60 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     // for (var i in curScore.selection.elements) {
     // }
   }
+  
+  return result;
+}
+
+let previousLyrics = [];
+let previousVerse = 0;
+
+function applyLyricsToScore(lyricsList, verse, placement) {
+  previousVerse = verse;
+  let processDataList = getTrackAndTick();
 
   for (const processData of processDataList) {
     let cursor = curScore.newCursor();
     cursor.rewindToTick(processData.startTick);
     cursor.track = processData.track;
+    
     let lyricIndex = 0;
     let defaultPlacement = newElement(Element.LYRICS).placement;
 
-    while (cursor.segment && lyricIndex < lyricsList.length) {
+    if (previousLyrics[cursor.track] === undefined) {
+      previousLyrics[cursor.track] = [];
+    }
+
+    while (cursor.segment && lyricIndex < Math.max(lyricsList.length, previousLyrics[cursor.track].length)) {
       if (cursor.element.type == Element.CHORD) {
         let lyrics = cursor.element.lyrics;
         let isExist = false;
+        let newLyric = lyricsList[lyricIndex] || previousLyrics[cursor.track][lyricIndex];
 
         for (var i = 0; i < lyrics.length; i++) {
           if (lyrics[i].verse == verse) {
-            if (isExist) {
+            if (previousLyrics[cursor.track][lyricIndex] === undefined) {
+              previousLyrics[cursor.track][lyricIndex] = lyrics[i].text || null;
+            }
+            if (isExist || !newLyric) {
               cursor.element.remove(lyrics[i]);
               i--;
             } else {
-              lyrics[i].text = lyricsList[lyricIndex];
-              lyrics[i].placement = placement == null ? defaultPlacement : placement;
+              lyrics[i].text = newLyric;
+              lyrics[i].placement = placement === null ? defaultPlacement : placement;
               isExist = true;
             }
           }
         }
+
+        if (previousLyrics[cursor.track][lyricIndex] === undefined) {
+          previousLyrics[cursor.track][lyricIndex] = null;
+        }
         
-        if (!isExist) {
+        if (!isExist && newLyric) {
           let lyric = newElement(Element.LYRICS);
-          lyric.text = lyricsList[lyricIndex];
+          lyric.text = newLyric;
           lyric.verse = verse;
-          lyric.placement = placement == null ? defaultPlacement : placement;
+          lyric.placement = placement === null ? defaultPlacement : placement;
           cursor.element.add(lyric);
         }
         lyricIndex++;
@@ -107,4 +130,15 @@ function applyLyricsToScore(lyricsList, verse, placement) {
       cursor.next();
     }
   }
+}
+
+function restorePreviousLyrics() {
+  applyLyricsToScore([], previousVerse, placementSelector.currentValue);
+  previousLyrics = [];
+  previousVerse = verseSelector.value;
+}
+
+function confirm() {
+  previousLyrics = [];
+  // TODO: 選択を移動させる
 }
