@@ -51,14 +51,16 @@ function applyLyricsToScore(lyricsList, verse, placement) {
   if (curScore.selection.isRange) {
     let selection = curScore.selection;
     let cursor = curScore.newCursor();
-    cursor.track = selection.startStaff * 4;
-    cursor.rewind(Cursor.SELECTION_START);
-    while (cursor.segment && cursor.tick < selection.endSegment.tick + 1) {
-      if (cursor.element.type == Element.CHORD) {
-        processDataList.push( { track: cursor.track, startTick: cursor.tick } );
-        break;
+    for (let staff = selection.startStaff; staff < selection.endStaff; staff++) {
+      cursor.rewind(Cursor.SELECTION_START);
+      cursor.track = staff * 4;
+      while (cursor.segment && cursor.tick < selection.endSegment.tick + 1) {
+        if (cursor.element.type == Element.CHORD) {
+          processDataList.push( { track: cursor.track, startTick: cursor.tick } );
+          break;
+        }
+        cursor.next();
       }
-      cursor.next();
     }
   } else {
     // TODO: ティックを取得
@@ -68,9 +70,10 @@ function applyLyricsToScore(lyricsList, verse, placement) {
 
   for (const processData of processDataList) {
     let cursor = curScore.newCursor();
-    cursor.track = processData.track;
     cursor.rewindToTick(processData.startTick);
-    while (cursor.segment && lyricsList.length > 0) {
+    cursor.track = processData.track;
+    let lyricIndex = 0;
+    while (cursor.segment && lyricIndex < lyricsList.length) {
       let lyrics = cursor.element.lyrics;
       for (var i = 0; i < lyrics.length; i++) {
         if (lyrics[i].verse == verse) {
@@ -80,12 +83,13 @@ function applyLyricsToScore(lyricsList, verse, placement) {
       }
       if (cursor.element.type == Element.CHORD) {
         let lyric = newElement(Element.LYRICS);
-        lyric.text = lyricsList.shift();
+        lyric.text = lyricsList[lyricIndex];
         lyric.verse = verse;
         if (placement != null) {
           lyric.placement = placement;
         }
         cursor.element.add(lyric);
+        lyricIndex++;
       }
       cursor.next();
     }
