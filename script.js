@@ -13,6 +13,7 @@ function splitLyrics(lyrics) {
 
   let result = [];
   let currentGroup = "";
+  let isInsideSlash = false;
 
   for (let i = 0; i < lyrics.length; i++) {
     const currentChar = lyrics[i];
@@ -20,21 +21,32 @@ function splitLyrics(lyrics) {
 
     let shouldCombine = false;
 
-    // 前の文字と結合するかどうかを判定
-    for (const rule of combineRules) {
-      if (rule.current.test(currentChar) && rule.previous.test(previousChar)) {
-        shouldCombine = true;
-        break;
+    if (!isInsideSlash) {
+      // 前の文字と結合するかどうかを判定
+      for (const rule of combineRules) {
+        if (rule.current.test(currentChar) && rule.previous.test(previousChar)) {
+          shouldCombine = true;
+          break;
+        }
       }
     }
 
     if (shouldCombine) {
       currentGroup += currentChar;
     } else {
-      if (currentGroup != "") {
-        result.push(currentGroup);
+      if (currentChar == "/") {
+        if (currentGroup != "") {
+          result.push(currentGroup);
+          currentGroup = "";
+        }
+        isInsideSlash = !isInsideSlash;
+      } else {  
+        if (currentGroup != "" && !isInsideSlash) {
+          result.push(currentGroup);
+          currentGroup = "";
+        }
+        currentGroup += currentChar == " " ? "" : currentChar; // スペースの場合は追加しない
       }
-      currentGroup = currentChar == " " ? "" : currentChar; // スペースの場合は追加しない
     }
   }
 
