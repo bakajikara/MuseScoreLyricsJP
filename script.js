@@ -85,22 +85,33 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     cursor.rewindToTick(processData.startTick);
     cursor.track = processData.track;
     let lyricIndex = 0;
+    let defaultPlacement = newElement(Element.LYRICS).placement;
+
     while (cursor.segment && lyricIndex < lyricsList.length) {
-      let lyrics = cursor.element.lyrics;
-      for (var i = 0; i < lyrics.length; i++) {
-        if (lyrics[i].verse == verse) {
-          cursor.element.remove(lyrics[i]);
-          i--;
-        }
-      }
       if (cursor.element.type == Element.CHORD) {
-        let lyric = newElement(Element.LYRICS);
-        lyric.text = lyricsList[lyricIndex];
-        lyric.verse = verse;
-        if (placement != null) {
-          lyric.placement = placement;
+        let lyrics = cursor.element.lyrics;
+        let isExist = false;
+
+        for (var i = 0; i < lyrics.length; i++) {
+          if (lyrics[i].verse == verse) {
+            if (isExist) {
+              cursor.element.remove(lyrics[i]);
+              i--;
+            } else {
+              lyrics[i].text = lyricsList[lyricIndex];
+              lyrics[i].placement = placement == null ? defaultPlacement : placement;
+              isExist = true;
+            }
+          }
         }
-        cursor.element.add(lyric);
+        
+        if (!isExist) {
+          let lyric = newElement(Element.LYRICS);
+          lyric.text = lyricsList[lyricIndex];
+          lyric.verse = verse;
+          lyric.placement = placement == null ? defaultPlacement : placement;
+          cursor.element.add(lyric);
+        }
         lyricIndex++;
       }
       cursor.next();
