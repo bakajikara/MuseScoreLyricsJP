@@ -11,6 +11,7 @@ function splitLyrics(lyrics) {
     { previous: /\S/, current: /[’”)）｣」』]/}, // 閉じ記号は前の文字と結合
     { previous: /\S/, current: /[+＋]/ }, // プラス記号は前の文字と結合
     { previous: /[+＋]/, current: /\S/ }, // プラス記号は後の文字と結合
+    { previous: /[^-_]/, current: /[-_]/ }, // ハイフンとアンダーバーは前のその他の文字と結合
   ];
 
   let result = [];
@@ -101,8 +102,18 @@ function savePreviousLyric(cursor, processIndex, ip, lyricElem) {
     previousLyrics[processIndex] = [];
   }
   if (previousLyrics[processIndex][ip] === undefined) {
-    previousLyrics[processIndex][ip] = lyricElem ? lyricElem.text : null;
-    // TODO: メリスマの場合はメリスマの最後まで保存
+    if (lyricElem) {
+      if (lyricElem.syllabic == Lyrics.BEGIN || lyricElem.syllabic == Lyrics.MIDDLE) {
+        previousLyrics[processIndex][ip] = lyricElem.text + "-";
+      } else if (lyricElem.lyricTicks.ticks) {
+        // TODO: メリスマの場合はメリスマの最後まで保存
+        previousLyrics[processIndex][ip] = lyricElem.text;
+      } else {
+        previousLyrics[processIndex][ip] = lyricElem.text;
+      }
+    } else {
+      previousLyrics[processIndex][ip] = null;
+    }
   }
 }
 
@@ -118,6 +129,7 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     
     let ic = 0;
     let ip = 0;
+    let isInsideWord = false;
     const defaultPlacement = newElement(Element.LYRICS).placement;
 
     while (cursor.segment && (ic < lyricsList.length || ip < previousLyrics[processIndex].length)) {
@@ -128,14 +140,21 @@ function applyLyricsToScore(lyricsList, verse, placement) {
 
         savePreviousLyric(cursor, processIndex, ip, lyricElem);
         
-        if (newLyricText) {
+        if (newLyricText && newLyricText != "-" && newLyricText != "_") {
           if (lyricElem === null) {
             lyricElem = newElement(Element.LYRICS);
             cursor.element.add(lyricElem);
           }
-          lyricElem.text = newLyricText;
+          lyricElem.text = newLyricText.replace(/[-_]/g, "");
           lyricElem.verse = verse;
           lyricElem.placement = placement === null ? defaultPlacement : placement;
+          if (newLyricText.endsWith("-")) {
+            lyricElem.syllabic = isInsideWord ? Lyrics.MIDDLE : Lyrics.BEGIN;
+            isInsideWord = true;
+          } else {
+            lyricElem.syllabic = isInsideWord ? Lyrics.END : Lyrics.SINGLE;
+            isInsideWord = false;
+          }          
         } else {
           if (lyricElem !== null) {
             cursor.element.remove(lyricElem);
