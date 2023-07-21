@@ -11,7 +11,7 @@ function splitLyrics(lyrics) {
     { previous: /\S/, current: /[’”)）｣」』]/}, // 閉じ記号は前の文字と結合
     { previous: /\S/, current: /[+＋]/ }, // プラス記号は前の文字と結合
     { previous: /[+＋]/, current: /\S/ }, // プラス記号は後の文字と結合
-    { previous: /[^-_]/, current: /[-_]/ }, // ハイフンとアンダーバーは前のその他の文字と結合
+    { previous: /[^-_]/, current: /-/ }, // ハイフンは前のハイフンまたはアンダーバー以外の文字と結合
   ];
 
   let result = [];
@@ -105,11 +105,22 @@ function savePreviousLyric(cursor, processIndex, ip, lyricElem) {
     if (lyricElem) {
       if (lyricElem.syllabic == Lyrics.BEGIN || lyricElem.syllabic == Lyrics.MIDDLE) {
         previousLyrics[processIndex][ip] = lyricElem.text + "-";
-      } else if (lyricElem.lyricTicks.ticks) {
-        // TODO: メリスマの場合はメリスマの最後まで保存
-        previousLyrics[processIndex][ip] = lyricElem.text;
       } else {
         previousLyrics[processIndex][ip] = lyricElem.text;
+        if (lyricElem.lyricTicks.ticks) {
+          // メリスマの場合はメリスマの最後まで保存
+          let tempCursor = curScore.newCursor();
+          tempCursor.rewindToTick(cursor.tick);
+          tempCursor.track = cursor.track;
+          let i = 0;
+          while (tempCursor.tick < cursor.tick + lyricElem.lyricTicks.ticks) {
+            tempCursor.next();
+            if (tempCursor.element.type == Element.CHORD) {
+              i++;
+              previousLyrics[processIndex][ip + i] = "_";
+            }
+          }
+        }
       }
     } else {
       previousLyrics[processIndex][ip] = null;
@@ -130,6 +141,8 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     let ic = 0;
     let ip = 0;
     let isInsideWord = false;
+    let melismaStartElem = null;
+    let melismaStartTick = 0;
     const defaultPlacement = newElement(Element.LYRICS).placement;
 
     while (cursor.segment && (ic < lyricsList.length || ip < previousLyrics[processIndex].length)) {
@@ -154,10 +167,16 @@ function applyLyricsToScore(lyricsList, verse, placement) {
           } else {
             lyricElem.syllabic = isInsideWord ? Lyrics.END : Lyrics.SINGLE;
             isInsideWord = false;
-          }          
+          }
+          melismaStartElem = lyricElem;
+          melismaStartTick = cursor.tick;
+          lyricElem.lyricTicks = fraction(0, 1);
         } else {
           if (lyricElem !== null) {
             cursor.element.remove(lyricElem);
+          }
+          if (newLyricText == "_") {
+            melismaStartElem.lyricTicks = fraction(cursor.tick - melismaStartTick, division * 4);
           }
         }
         ic++;
