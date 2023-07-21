@@ -69,12 +69,21 @@ function getTrackAndTick() {
       }
     }
   } else {
-    // TODO: ティックを取得
-    // for (var i in curScore.selection.elements) {
-    // }
+    for (var i in curScore.selection.elements) {
+      let element = curScore.selection.elements[i];
+      result.push( { track: element.track, startTick: getElementTick(element) } );
+    }
   }
   
   return result;
+}
+
+function getElementTick(element) {
+  let segment = element;
+  while (segment.parent && segment.type != Element.SEGMENT) {
+    segment = segment.parent;
+  }
+  return segment.tick;
 }
 
 function getAndRemoveDuplicateLyric(cursor, verse) {
