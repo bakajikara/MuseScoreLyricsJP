@@ -47,6 +47,9 @@ function splitLyrics(lyrics) {
   return result;
 }
 
+let previousLyrics = [];
+let previousVerse = 0;
+
 function getTrackAndTick() {
   let result = [];
 
@@ -73,62 +76,77 @@ function getTrackAndTick() {
   return result;
 }
 
-let previousLyrics = [];
-let previousVerse = 0;
+function getAndRemoveDuplicateLyric(cursor, verse) {
+  let lyrics = cursor.element.lyrics;
+  let isExist = false;
+  let lyricElem = null;
+
+  for (var i = 0; i < lyrics.length; i++) {
+    if (lyrics[i].verse == verse) {
+      if (isExist) {
+        cursor.element.remove(lyrics[i]);
+        i--;
+      } else {
+        lyricElem = lyrics[i];
+        isExist = true;
+      }
+    }
+  }
+
+  return lyricElem;
+}
+
+function savePreviousLyric(cursor, processIndex, ip, lyricElem) {
+  if (previousLyrics[processIndex] === undefined) {
+    previousLyrics[processIndex] = [];
+  }
+  if (previousLyrics[processIndex][ip] === undefined) {
+    previousLyrics[processIndex][ip] = lyricElem ? lyricElem.text : null;
+    // TODO: メリスマの場合はメリスマの最後まで保存
+  }
+}
 
 function applyLyricsToScore(lyricsList, verse, placement) {
   previousVerse = verse;
   let processDataList = getTrackAndTick();
+  let processIndex = 0;
 
   for (const processData of processDataList) {
     let cursor = curScore.newCursor();
     cursor.rewindToTick(processData.startTick);
     cursor.track = processData.track;
     
-    let lyricIndex = 0;
-    let defaultPlacement = newElement(Element.LYRICS).placement;
+    let ic = 0;
+    let ip = 0;
+    const defaultPlacement = newElement(Element.LYRICS).placement;
 
-    if (previousLyrics[cursor.track] === undefined) {
-      previousLyrics[cursor.track] = [];
-    }
-
-    while (cursor.segment && lyricIndex < Math.max(lyricsList.length, previousLyrics[cursor.track].length)) {
+    while (cursor.segment && (ic < lyricsList.length || ip < previousLyrics[processIndex].length)) {
       if (cursor.element.type == Element.CHORD) {
-        let lyrics = cursor.element.lyrics;
-        let isExist = false;
-        let newLyric = lyricsList[lyricIndex] || previousLyrics[cursor.track][lyricIndex];
+        let newLyricText = lyricsList[ic] || previousLyrics[processIndex][ip];
 
-        for (var i = 0; i < lyrics.length; i++) {
-          if (lyrics[i].verse == verse) {
-            if (previousLyrics[cursor.track][lyricIndex] === undefined) {
-              previousLyrics[cursor.track][lyricIndex] = lyrics[i].text || null;
-            }
-            if (isExist || !newLyric) {
-              cursor.element.remove(lyrics[i]);
-              i--;
-            } else {
-              lyrics[i].text = newLyric;
-              lyrics[i].placement = placement === null ? defaultPlacement : placement;
-              isExist = true;
-            }
+        let lyricElem = getAndRemoveDuplicateLyric(cursor, verse);
+
+        savePreviousLyric(cursor, processIndex, ip, lyricElem);
+        
+        if (newLyricText) {
+          if (lyricElem === null) {
+            lyricElem = newElement(Element.LYRICS);
+            cursor.element.add(lyricElem);
+          }
+          lyricElem.text = newLyricText;
+          lyricElem.verse = verse;
+          lyricElem.placement = placement === null ? defaultPlacement : placement;
+        } else {
+          if (lyricElem !== null) {
+            cursor.element.remove(lyricElem);
           }
         }
-
-        if (previousLyrics[cursor.track][lyricIndex] === undefined) {
-          previousLyrics[cursor.track][lyricIndex] = null;
-        }
-        
-        if (!isExist && newLyric) {
-          let lyric = newElement(Element.LYRICS);
-          lyric.text = newLyric;
-          lyric.verse = verse;
-          lyric.placement = placement === null ? defaultPlacement : placement;
-          cursor.element.add(lyric);
-        }
-        lyricIndex++;
+        ic++;
+        ip++;
       }
       cursor.next();
     }
+    processIndex++;
   }
 }
 
