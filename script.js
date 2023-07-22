@@ -207,7 +207,32 @@ function restorePreviousLyrics() {
 }
 
 function confirm() {
+  moveSelectionToNextElement();
   previousLyrics = {};
   previousLargestTick = {};
-  // TODO: 選択を移動させる
+}
+
+function moveSelectionToNextElement() {
+  let lyricsList = splitLyrics(lyricsInput.text);
+  let processDataList = getTrackAndTick();
+
+  curScore.selection.clear();
+
+  for (const processData of processDataList) {
+    let track = processData.track;
+    let cursor = curScore.newCursor();
+    cursor.rewindToTick(processData.startTick);
+    cursor.track = track;
+
+    let count = lyricsList.length;
+    while (cursor.segment && count > 0) {
+      cursor.next();
+      if (cursor.element.type == Element.CHORD) {
+        count--;
+      }
+    }
+    if (cursor.segment) {
+      curScore.selection.select(cursor.element.notes[0], true);
+    }
+  }
 }

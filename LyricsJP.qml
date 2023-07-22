@@ -119,7 +119,9 @@ MuseScore {
             text: "確定"
 
             onClicked: {
+                curScore.startCmd();
                 Script.confirm();
+                curScore.endCmd();
                 lyricsInput.text = "";
             }
         }
