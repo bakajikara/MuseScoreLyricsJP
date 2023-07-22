@@ -70,7 +70,7 @@ function getTrackAndTick() {
       }
     }
   } else {
-    for (var i in curScore.selection.elements) {
+    for (let i in curScore.selection.elements) {
       let element = curScore.selection.elements[i];
       result.push( { track: element.track, startTick: getElementTick(element) } );
     }
@@ -85,6 +85,68 @@ function getElementTick(element) {
     segment = segment.parent;
   }
   return segment.tick;
+}
+
+function getSlurTieTicks(track, tick) {
+  // 選択範囲を保存
+  let isRange = curScore.selection.isRange;
+  let selection = {};
+  if (isRange) {
+    selection.startTick = curScore.selection.startSegment.tick;
+    selection.endTick = curScore.selection.endSegment.tick;
+    selection.startStaff = curScore.selection.startStaff;
+    selection.endStaff = curScore.selection.endStaff;
+  } else {
+    selection.elements = {};
+    for (let i in curScore.selection.elements) {
+      selection.elements[i] = curScore.selection.elements[i];
+    }
+  }
+
+  let tempCursor = curScore.newCursor();
+  tempCursor.rewindToTick(tick);
+  tempCursor.track = track;
+  tempCursor.next();
+
+  curScore.startCmd();
+  curScore.selection.clear();
+  curScore.selection.selectRange(tick, tempCursor.tick, Math.floor(track / 4), Math.floor(track / 4) + 1);
+  curScore.endCmd();
+
+  let minSlurTicks = 0;
+  let maxTieTicks = 0;
+  for (let i in curScore.selection.elements) {
+    let element = curScore.selection.elements[i];
+    if (element.track != track) {
+      continue;
+    }
+    if (element.type == Element.SLUR) {
+      if ((minSlurTicks == 0 || minSlurTicks > element.spannerTicks.ticks) && element.spannerTick.ticks == tick) {
+        minSlurTicks = element.spannerTicks.ticks;
+      }
+    } else if (element.type == Element.NOTE) {
+      let tieTicks = getElementTick(element.lastTiedNote) - tick;
+      if (maxTieTicks == 0 || maxTieTicks < tieTicks) {
+        maxTieTicks = tieTicks;
+      }
+    }
+  }
+
+  // 選択範囲を元に戻す
+  curScore.startCmd();
+  curScore.selection.clear();
+  if (isRange) {
+    curScore.selection.selectRange(selection.startTick, selection.endTick, selection.startStaff, selection.endStaff);
+  } else {
+    for (let i in selection.elements) {
+      let element = selection.elements[i];
+      curScore.selection.select(element, true);
+    }
+  }
+  curScore.endCmd();
+
+  // minSlurTicks または maxTieTicks の大きい方を返す
+  return minSlurTicks > maxTieTicks ? minSlurTicks : maxTieTicks;
 }
 
 function getAndRemoveDuplicateLyric(cursor, verse) {
@@ -155,15 +217,62 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     let isInsideWord = false;
     let melismaStartElem = null;
     let melismaStartTick = 0;
+    let slurTieEndTick = -1;
     const defaultPlacement = newElement(Element.LYRICS).placement;
 
     while (cursor.segment && (ic < lyricsList.length || cursor.tick <= previousLargestTick[processIndex])) {
       if (cursor.element.type == Element.CHORD) {
+        let lyricElem = getAndRemoveDuplicateLyric(cursor, verse);
+        savePreviousLyric(processIndex, track, cursor.tick, lyricElem);
+
         let newLyricText = lyricsList[ic] || previousLyrics[track][cursor.tick];
 
-        let lyricElem = getAndRemoveDuplicateLyric(cursor, verse);
+        if (/[=＝]/.test(newLyricText)) {
+          let index = newLyricText.search(/[=＝]/);
+          let beforeText = newLyricText.substring(0, index);
+          let afterText = newLyricText.substring(index + 1);
 
-        savePreviousLyric(processIndex, track, cursor.tick, lyricElem);
+          if (slurTieEndTick == -1) {
+            let slurTieTicks = 0;
+
+            if (beforeText) {
+              slurTieTicks = getSlurTieTicks(track, cursor.tick);
+              slurTieEndTick = cursor.tick + slurTieTicks;
+            } else {
+              cursor.prev();
+              slurTieTicks = getSlurTieTicks(track, cursor.tick);
+              slurTieEndTick = cursor.tick + slurTieTicks;
+              cursor.next();
+            }
+
+            if (slurTieTicks) {
+              newLyricText = beforeText || "ー";
+              if (slurTieEndTick == cursor.tick) {
+                slurTieEndTick = -1;
+              } else {
+                ic--;
+              }
+            } else {
+              slurTieEndTick = -1;
+              if (beforeText != "" || afterText != "") {
+                newLyricText = newLyricText.replace(/[=＝]/g, "ー").replace(/ーー/g, "ー");
+              } else {
+                ic++;
+                continue;
+              }
+            }
+          } else if (cursor.tick == slurTieEndTick) {
+            slurTieEndTick = -1;
+            if (afterText) {
+              newLyricText = beforeText ? afterText : "ー" + afterText;
+            } else {
+              newLyricText = "ー";
+            }
+          } else if (cursor.tick < slurTieEndTick) {
+            newLyricText = "ー";
+            ic--;
+          }
+        }
         
         if (newLyricText && newLyricText != "-" && newLyricText != "_") {
           if (lyricElem === null) {
