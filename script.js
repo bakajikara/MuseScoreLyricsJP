@@ -48,7 +48,8 @@ function splitLyrics(lyrics) {
   return result;
 }
 
-let previousLyrics = [];
+let previousLyrics = {};
+let previousLargestTick = {};
 let previousVerse = 0;
 
 function getTrackAndTick() {
@@ -106,34 +107,36 @@ function getAndRemoveDuplicateLyric(cursor, verse) {
   return lyricElem;
 }
 
-function savePreviousLyric(cursor, processIndex, ip, lyricElem) {
-  if (previousLyrics[processIndex] === undefined) {
-    previousLyrics[processIndex] = [];
+function savePreviousLyric(processIndex, track, tick, lyricElem) {
+  if (previousLyrics[track] === undefined) {
+    previousLyrics[track] = {};
   }
-  if (previousLyrics[processIndex][ip] === undefined) {
+  if (previousLyrics[track][tick] === undefined) {
     if (lyricElem) {
       if (lyricElem.syllabic == Lyrics.BEGIN || lyricElem.syllabic == Lyrics.MIDDLE) {
-        previousLyrics[processIndex][ip] = lyricElem.text + "-";
+        previousLyrics[track][tick] = lyricElem.text + "-";
       } else {
-        previousLyrics[processIndex][ip] = lyricElem.text;
+        previousLyrics[track][tick] = lyricElem.text;
         if (lyricElem.lyricTicks.ticks) {
           // メリスマの場合はメリスマの最後まで保存
           let tempCursor = curScore.newCursor();
-          tempCursor.rewindToTick(cursor.tick);
-          tempCursor.track = cursor.track;
-          let i = 0;
-          while (tempCursor.tick < cursor.tick + lyricElem.lyricTicks.ticks) {
+          tempCursor.rewindToTick(tick);
+          tempCursor.track = track;
+          while (tempCursor.tick < tick + lyricElem.lyricTicks.ticks) {
             tempCursor.next();
             if (tempCursor.element.type == Element.CHORD) {
-              i++;
-              previousLyrics[processIndex][ip + i] = "_";
+              previousLyrics[track][tempCursor.tick] = "_";
             }
           }
+          tick = tempCursor.tick;
         }
       }
     } else {
-      previousLyrics[processIndex][ip] = null;
+      previousLyrics[track][tick] = null;
     }
+  }
+  if (previousLargestTick[processIndex] === undefined || previousLargestTick[processIndex] < tick) {
+    previousLargestTick[processIndex] = tick;
   }
 }
 
@@ -143,24 +146,24 @@ function applyLyricsToScore(lyricsList, verse, placement) {
   let processIndex = 0;
 
   for (const processData of processDataList) {
+    let track = processData.track;
     let cursor = curScore.newCursor();
     cursor.rewindToTick(processData.startTick);
-    cursor.track = processData.track;
+    cursor.track = track;
     
     let ic = 0;
-    let ip = 0;
     let isInsideWord = false;
     let melismaStartElem = null;
     let melismaStartTick = 0;
     const defaultPlacement = newElement(Element.LYRICS).placement;
 
-    while (cursor.segment && (ic < lyricsList.length || ip < previousLyrics[processIndex].length)) {
+    while (cursor.segment && (ic < lyricsList.length || cursor.tick <= previousLargestTick[processIndex])) {
       if (cursor.element.type == Element.CHORD) {
-        let newLyricText = lyricsList[ic] || previousLyrics[processIndex][ip];
+        let newLyricText = lyricsList[ic] || previousLyrics[track][cursor.tick];
 
         let lyricElem = getAndRemoveDuplicateLyric(cursor, verse);
 
-        savePreviousLyric(cursor, processIndex, ip, lyricElem);
+        savePreviousLyric(processIndex, track, cursor.tick, lyricElem);
         
         if (newLyricText && newLyricText != "-" && newLyricText != "_") {
           if (lyricElem === null) {
@@ -189,7 +192,6 @@ function applyLyricsToScore(lyricsList, verse, placement) {
           }
         }
         ic++;
-        ip++;
       }
       cursor.next();
     }
@@ -199,11 +201,13 @@ function applyLyricsToScore(lyricsList, verse, placement) {
 
 function restorePreviousLyrics() {
   applyLyricsToScore([], previousVerse, placementSelector.currentValue);
-  previousLyrics = [];
+  previousLyrics = {};
+  previousLargestTick = {};
   previousVerse = verseSelector.value;
 }
 
 function confirm() {
-  previousLyrics = [];
+  previousLyrics = {};
+  previousLargestTick = {};
   // TODO: 選択を移動させる
 }
