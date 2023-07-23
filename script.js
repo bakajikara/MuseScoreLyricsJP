@@ -105,8 +105,8 @@ function getSlurTieTicks(track, tick) {
   }
 
   let tempCursor = curScore.newCursor();
-  tempCursor.rewindToTick(tick);
   tempCursor.track = track;
+  tempCursor.rewindToTick(tick);
   tempCursor.next();
 
   curScore.startCmd();
@@ -183,8 +183,8 @@ function savePreviousLyric(processIndex, track, tick, lyricElem) {
         if (lyricElem.lyricTicks.ticks) {
           // メリスマの場合はメリスマの最後まで保存
           let tempCursor = curScore.newCursor();
-          tempCursor.rewindToTick(tick);
           tempCursor.track = track;
+          tempCursor.rewindToTick(tick);
           while (tempCursor.tick < tick + lyricElem.lyricTicks.ticks) {
             tempCursor.next();
             if (tempCursor.element.type == Element.CHORD) {
@@ -211,8 +211,8 @@ function applyLyricsToScore(lyricsList, verse, placement) {
   for (const processData of processDataList) {
     let track = processData.track;
     let cursor = curScore.newCursor();
-    cursor.rewindToTick(processData.startTick);
     cursor.track = track;
+    cursor.rewindToTick(processData.startTick);
     
     let ic = 0;
     let isInsideWord = false;
@@ -340,8 +340,8 @@ function moveSelectionToNextElement() {
   for (const processData of processDataList) {
     let track = processData.track;
     let cursor = curScore.newCursor();
-    cursor.rewindToTick(nextStartTick[processIndex] || processData.startTick);
     cursor.track = track;
+    cursor.rewindToTick(nextStartTick[processIndex] || processData.startTick);
 
     while (cursor.segment && cursor.element.type != Element.CHORD) {
       cursor.next();
