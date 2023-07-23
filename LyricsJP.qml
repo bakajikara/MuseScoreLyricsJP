@@ -4,7 +4,7 @@ import QtQuick.Controls 2.15
 import "script.js" as Script
 
 MuseScore {
-    version: "0.0.0"
+    version: "1.0.0"
     description: "日本語の歌詞入力を簡単に行うためのプラグインです。"
     title: "日本語歌詞入力"
     categoryCode: "lyrics"
