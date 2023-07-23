@@ -51,6 +51,7 @@ function splitLyrics(lyrics) {
 let previousLyrics = {};
 let previousLargestTick = {};
 let previousVerse = 0;
+let nextStartTick = {};
 
 function getTrackAndTick() {
   let result = [];
@@ -258,6 +259,9 @@ function applyLyricsToScore(lyricsList, verse, placement) {
                 newLyricText = newLyricText.replace(/[=＝]/g, "ー").replace(/ーー/g, "ー");
               } else {
                 ic++;
+                if (ic == lyricsList.length) {
+                  nextStartTick[processIndex] = cursor.tick;
+                }
                 continue;
               }
             }
@@ -303,6 +307,9 @@ function applyLyricsToScore(lyricsList, verse, placement) {
         ic++;
       }
       cursor.next();
+      if (ic == lyricsList.length) {
+        nextStartTick[processIndex] = cursor.tick;
+      }
     }
     processIndex++;
   }
@@ -310,6 +317,7 @@ function applyLyricsToScore(lyricsList, verse, placement) {
 
 function restorePreviousLyrics() {
   applyLyricsToScore([], previousVerse, placementSelector.currentValue);
+  nextStartTick = {};
   previousLyrics = {};
   previousLargestTick = {};
   previousVerse = verseSelector.value;
@@ -317,31 +325,31 @@ function restorePreviousLyrics() {
 
 function confirm() {
   moveSelectionToNextElement();
+  nextStartTick = {};
   previousLyrics = {};
   previousLargestTick = {};
 }
 
 function moveSelectionToNextElement() {
-  let lyricsList = splitLyrics(lyricsInput.text);
   let processDataList = getTrackAndTick();
 
   curScore.selection.clear();
 
+  let processIndex = 0;
+
   for (const processData of processDataList) {
     let track = processData.track;
     let cursor = curScore.newCursor();
-    cursor.rewindToTick(processData.startTick);
+    cursor.rewindToTick(nextStartTick[processIndex] || processData.startTick);
     cursor.track = track;
 
-    let count = lyricsList.length;
-    while (cursor.segment && count > 0) {
+    while (cursor.segment && cursor.element.type != Element.CHORD) {
       cursor.next();
-      if (cursor.element.type == Element.CHORD) {
-        count--;
-      }
     }
     if (cursor.segment) {
       curScore.selection.select(cursor.element.notes[0], true);
     }
+    
+    processIndex++;
   }
 }
