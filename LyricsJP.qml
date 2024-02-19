@@ -56,6 +56,14 @@ MuseScore {
                 Script.applyLyricsToScore(Script.splitLyrics(newTextValue), verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
             }
+
+            onAccepted: {
+                curScore.startCmd();
+                Script.confirm();
+                curScore.endCmd();
+                clear();
+                ensureActiveFocus();
+            }
         }
 
         IncrementalPropertyControl {
