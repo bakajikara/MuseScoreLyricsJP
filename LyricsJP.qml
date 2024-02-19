@@ -18,6 +18,7 @@
 import MuseScore 3.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import MuseScore.UiComponents 1.0
 import "script.js" as Script
 
 MuseScore {
@@ -38,7 +39,7 @@ MuseScore {
     Item {
         anchors.fill: parent
 
-        TextField {
+        TextInputField {
             id: lyricsInput
 
             anchors.top: parent.top
@@ -47,17 +48,17 @@ MuseScore {
             width: parent.width
             height: 32
 
-            placeholderText: "ここに歌詞を入力"
-            selectByMouse: true
+            hint: "ここに歌詞を入力"
 
             onTextEdited: {
+                currentText = newTextValue;
                 curScore.startCmd();
-                Script.applyLyricsToScore(Script.splitLyrics(text), verseSelector.value, placementSelector.currentValue);
+                Script.applyLyricsToScore(Script.splitLyrics(newTextValue), verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
             }
         }
 
-        SpinBox {
+        IncrementalPropertyControl {
             id: verseSelector
 
             anchors.bottom: parent.bottom
@@ -66,21 +67,25 @@ MuseScore {
             width: 64
             height: 32
 
-            from: 0
-            to: 999
+            currentValue: 1
 
-            textFromValue: function(value, locale) { return value + 1 + "番"; }
-            valueFromText: function(text, locale) { return parseInt(text) - 1; }
+            step: 1
+            decimals: 0
+            minValue: 1
+            maxValue: 999
 
-            onValueModified: {
+            measureUnitsSymbol: "番"
+
+            onValueEdited: {
+                currentValue = newValue;
                 curScore.startCmd();
                 Script.restorePreviousLyrics();
-                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.text), value, placementSelector.currentValue);
+                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.currentText), newValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
             }
         }
 
-        ComboBox {
+        StyledDropdown {
             id: placementSelector
 
             anchors.bottom: parent.bottom
@@ -88,24 +93,24 @@ MuseScore {
 
             width: 96
             height: 32
-            
-            textRole: "text"
-            valueRole: "value"
+
+            currentIndex: 0
 
             model: [
-                { value: null, text: "デフォルト" },
-                { value: Placement.ABOVE, text: "上" },
-                { value: Placement.BELOW, text: "下" }
+                { text: "デフォルト", value: null },
+                { text: "上", value: Placement.ABOVE },
+                { text: "下", value: Placement.BELOW }
             ]
             
             onActivated: {
+                currentIndex = index;
                 curScore.startCmd();
-                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.text), verseSelector.value, currentValue);
+                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.currentText), verseSelector.currentValue - 1, currentValue);
                 curScore.endCmd();
             }
         }
         
-        Button {
+        FlatButton {
             id: cancelButton
 
             anchors.bottom: parent.bottom
@@ -120,11 +125,11 @@ MuseScore {
                 curScore.startCmd();
                 Script.restorePreviousLyrics();
                 curScore.endCmd();
-                lyricsInput.text = "";
+                lyricsInput.clear();
             }
         }
 
-        Button {
+        FlatButton {
             id: confirmButton
 
             anchors.bottom: parent.bottom
@@ -134,12 +139,14 @@ MuseScore {
             height: 32
 
             text: "確定"
+            accentButton: true
 
             onClicked: {
                 curScore.startCmd();
                 Script.confirm();
                 curScore.endCmd();
-                lyricsInput.text = "";
+                lyricsInput.clear();
+                lyricsInput.ensureActiveFocus();
             }
         }
     }
