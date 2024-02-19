@@ -2,11 +2,11 @@
 MuseScore で日本語の歌詞入力を簡単に行うためのプラグインです。
 
 ## 注意事項
- - MuseScore 4.1.0 で動作確認を行っています。古いバージョンでの動作は保証しません。
+ - MuseScore 4.2.1 で動作確認を行っています。古いバージョンでの動作は保証しません。
  - 使用前にファイルを保存、バックアップすることを推奨します。不具合等によりデータが消失した場合、一切の責任を負いません。
 
 ## インストール
-1. [最新版をダウンロード](https://github.com/bakajikara/MuseScoreLyricsJP/archive/refs/tags/v1.0.0.zip)する。
+1. [最新版をダウンロード](https://github.com/bakajikara/MuseScoreLyricsJP/archive/refs/heads/main.zip)する。
 2. ダウンロードしたファイルを解凍し、 MuseScore の Plugins フォルダに配置する。
 3. MuseScore の ホーム→プラグイン から **日本語歌詞入力** を有効化する。
 
