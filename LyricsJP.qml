@@ -5,12 +5,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -18,7 +18,7 @@
 import MuseScore 3.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import MuseScore.UiComponents 1.0
+import Muse.UiComponents 1.0
 import "script.js" as Script
 
 MuseScore {
@@ -109,7 +109,7 @@ MuseScore {
                 { text: "上", value: Placement.ABOVE },
                 { text: "下", value: Placement.BELOW }
             ]
-            
+
             onActivated: {
                 currentIndex = index;
                 curScore.startCmd();
@@ -117,7 +117,7 @@ MuseScore {
                 curScore.endCmd();
             }
         }
-        
+
         FlatButton {
             id: cancelButton
 
