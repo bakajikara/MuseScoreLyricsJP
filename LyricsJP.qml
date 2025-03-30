@@ -1,5 +1,5 @@
 /*
- * Copyright © 2023 bakajikara
+ * Copyright © 2023-2025 bakajikara
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ MuseScore {
                 Script.confirm();
                 curScore.endCmd();
                 clear();
-                ensureActiveFocus();
+                Qt.callLater(ensureActiveFocus);
             }
         }
 
@@ -99,7 +99,7 @@ MuseScore {
             anchors.bottom: parent.bottom
             anchors.left: verseSelector.right
 
-            width: 96
+            width: 128
             height: 32
 
             currentIndex: 0
