@@ -1,31 +1,31 @@
 /*
  * Copyright © 2023 bakajikara
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 function splitLyrics(lyrics) {
   const combineRules = [
-    { previous: /[a-zA-Z'ａ-ｚＡ-Ｚ＇]/ , current: /[a-zA-Z'ａ-ｚＡ-Ｚ＇]/ }, // 英単語の結合
+    { previous: /[a-zA-Z'ａ-ｚＡ-Ｚ＇]/, current: /[a-zA-Z'ａ-ｚＡ-Ｚ＇]/ }, // 英単語の結合
     // { previous: /[\p{Ll}\p{Lt}\p{Lu}]/u , current: /[\p{Ll}\p{Lt}\p{Lu}]/u }, // 小文字と大文字の結合
-    { previous: /[ぁ-ゟ]/ , current: /[ぁぃぅぇぉゃゅょゎゕゖ]/ }, // 小書き文字の一部と濁点半濁点は前のひらがなと結合
-    { previous: /[ァ-ヿ]/ , current: /[ァィゥェォャュョヮヵヶ゙゚゛゜]/ }, // 小書き文字の一部は前のカタカナと結合
-    { previous: /[ｦ-ﾝ]/, current: /[ｧ-ｮ]/}, // 小書き文字の一部は前の半角カタカナと結合
-    { previous: /[ぁ-ゟァ-ヿｦ-ﾝ]/ , current: /[゙゚゛゜ﾞﾟ]/ }, // 濁点半濁点は前の仮名と結合
+    { previous: /[ぁ-ゟ]/, current: /[ぁぃぅぇぉゃゅょゎゕゖ]/ }, // 小書き文字の一部と濁点半濁点は前のひらがなと結合
+    { previous: /[ァ-ヿ]/, current: /[ァィゥェォャュョヮヵヶ゙゚゛゜]/ }, // 小書き文字の一部は前のカタカナと結合
+    { previous: /[ｦ-ﾝ]/, current: /[ｧ-ｮ]/ }, // 小書き文字の一部は前の半角カタカナと結合
+    { previous: /[ぁ-ゟァ-ヿｦ-ﾝ]/, current: /[゙゚゛゜ﾞﾟ]/ }, // 濁点半濁点は前の仮名と結合
     { previous: /./, current: /[,.:;!?､｡、。：；！？]/ }, // 句読点や記号は前の文字と結合
     { previous: /[‘“(（｢「『]/, current: /\S/ }, // 開き記号は後の文字と結合
-    { previous: /\S/, current: /[’”)）｣」』]/}, // 閉じ記号は前の文字と結合
+    { previous: /\S/, current: /[’”)）｣」』]/ }, // 閉じ記号は前の文字と結合
     { previous: /\S/, current: /[+＋]/ }, // プラス記号は前の文字と結合
     { previous: /[+＋]/, current: /\S/ }, // プラス記号は後の文字と結合
     { previous: /[^-_]/, current: /-/ }, // ハイフンは前のハイフンまたはアンダーバー以外の文字と結合
@@ -81,7 +81,7 @@ function getTrackAndTick() {
       cursor.track = staff * 4;
       while (cursor.segment && cursor.tick < selection.endSegment.tick + 1) {
         if (cursor.element.type == Element.CHORD) {
-          result.push( { track: cursor.track, startTick: cursor.tick } );
+          result.push({ track: cursor.track, startTick: cursor.tick });
           break;
         }
         cursor.next();
@@ -90,10 +90,10 @@ function getTrackAndTick() {
   } else {
     for (let i in curScore.selection.elements) {
       let element = curScore.selection.elements[i];
-      result.push( { track: element.track, startTick: getElementTick(element) } );
+      result.push({ track: element.track, startTick: getElementTick(element) });
     }
   }
-  
+
   return result;
 }
 
@@ -230,7 +230,7 @@ function applyLyricsToScore(lyricsList, verse, placement) {
     let cursor = curScore.newCursor();
     cursor.track = track;
     cursor.rewindToTick(processData.startTick);
-    
+
     let ic = 0;
     let isInsideWord = false;
     let melismaStartElem = null;
@@ -294,7 +294,7 @@ function applyLyricsToScore(lyricsList, verse, placement) {
             ic--;
           }
         }
-        
+
         if (newLyricText && newLyricText != "-" && newLyricText != "_") {
           if (lyricElem === null) {
             lyricElem = newElement(Element.LYRICS);
@@ -366,7 +366,7 @@ function moveSelectionToNextElement() {
     if (cursor.segment) {
       curScore.selection.select(cursor.element.notes[0], true);
     }
-    
+
     processIndex++;
   }
 }
