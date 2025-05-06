@@ -50,6 +50,10 @@ MuseScore {
 
             hint: "ここに歌詞を入力"
 
+            Component.onCompleted: {
+                ensureActiveFocus();
+            }
+
             onTextEdited: {
                 currentText = newTextValue;
                 curScore.startCmd();
