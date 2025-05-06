@@ -22,7 +22,7 @@ import Muse.UiComponents 1.0
 import "script.js" as Script
 
 MuseScore {
-    version: "1.1.1"
+    version: "1.1.3"
     description: "日本語の歌詞入力を簡単に行うためのプラグインです。"
     title: "日本語歌詞入力"
     categoryCode: "lyrics"
