@@ -138,7 +138,7 @@ function getSlurTieTicks(track, tick) {
     if (element.track != track) {
       continue;
     }
-    if (element.type == Element.SLUR) {
+    if (element.type == Element.SLUR || element.type == Element.SLUR_SEGMENT) {
       if ((minSlurTicks == 0 || minSlurTicks > element.spannerTicks.ticks) && element.spannerTick.ticks == tick) {
         minSlurTicks = element.spannerTicks.ticks;
       }
