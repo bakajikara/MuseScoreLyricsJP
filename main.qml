@@ -90,7 +90,7 @@ MuseScore {
             onValueEdited: {
                 currentValue = newValue;
                 curScore.startCmd();
-                Script.restorePreviousLyrics();
+                Script.restorePreviousLyrics(newValue - 1, placementSelector.currentValue);
                 Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.currentText), newValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
             }
@@ -134,7 +134,7 @@ MuseScore {
 
             onClicked: {
                 curScore.startCmd();
-                Script.restorePreviousLyrics();
+                Script.restorePreviousLyrics(verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
                 lyricsInput.clear();
             }
