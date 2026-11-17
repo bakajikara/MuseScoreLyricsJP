@@ -26,7 +26,7 @@ MuseScore {
     description: "日本語の歌詞入力を簡単に行うためのプラグインです。"
     title: "日本語歌詞入力"
     categoryCode: "lyrics"
-    thumbnailName: "LyricsJP.png"
+    thumbnailName: "thumbnail.png"
     pluginType: "dialog"
 
     requiresScore: true

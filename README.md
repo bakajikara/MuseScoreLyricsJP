@@ -1,14 +1,14 @@
-# MuseScoreLyricsJP
-MuseScore で日本語の歌詞入力を簡単に行うためのプラグインです。
+# mss-jp-lyrics
+MuseScore Studio で日本語の歌詞入力を簡単に行うためのプラグインです。
 
 ## 注意事項
  - MuseScore Studio 4.7.7 で動作確認を行っています。古いバージョンでの動作は保証しません。
  - 使用前にファイルを保存、バックアップすることを推奨します。不具合等によりデータが消失した場合、一切の責任を負いません。
 
 ## インストール
-1. [最新版をダウンロード](https://github.com/bakajikara/MuseScoreLyricsJP/archive/refs/heads/main.zip)する。
-2. ダウンロードしたファイルを解凍し、 MuseScore の Plugins フォルダに配置する。
-3. MuseScore の ホーム→プラグイン から **日本語歌詞入力** を有効化する。
+1. [最新版をダウンロード](https://github.com/bakajikara/mss-jp-lyrics/archive/refs/heads/main.zip)する。
+2. ダウンロードしたファイルを解凍し、MuseScore Studio の Plugins フォルダに配置する。
+3. MuseScore Studio の ホーム→プラグイン から **日本語歌詞入力** を有効化する。
 
 ## 使い方
 ### 起動
