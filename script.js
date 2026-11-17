@@ -139,8 +139,11 @@ function getSlurTieTicks(track, tick) {
       continue;
     }
     if (element.type == Element.SLUR || element.type == Element.SLUR_SEGMENT) {
-      if ((minSlurTicks == 0 || minSlurTicks > element.spannerTicks.ticks) && element.spannerTick.ticks == tick) {
-        minSlurTicks = element.spannerTicks.ticks;
+      var spanner = element.spanner ? element.spanner : element;
+      if (spanner && spanner.spannerTicks && spanner.spannerTick) {
+          if ((minSlurTicks == 0 || minSlurTicks > spanner.spannerTicks.ticks) && spanner.spannerTick.ticks == tick) {
+              minSlurTicks = spanner.spannerTicks.ticks;
+          }
       }
     } else if (element.type == Element.NOTE) {
       let tieTicks = getElementTick(element.lastTiedNote) - tick;
