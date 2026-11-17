@@ -33,7 +33,9 @@ MuseScore {
     width: 512
     height: 64
 
-    onRun: {}
+    onRun: {
+        syncSelectionState();
+    }
 
     // 指定要素の子孫から displayText を持つ内部 TextInput を探索
     function findTextInput(item) {
@@ -70,8 +72,30 @@ MuseScore {
         lyricsInput.isClearing = false;
     }
 
-    Item {
+    // フォーカス復帰や実行時に選択対象の変化を検知して状態を同期
+    function syncSelectionState() {
+        let change = Script.evaluateSelectionChange();
+        if (change.status == "reset") {
+            Script.resetInputState();
+            clearLyricsInput();
+        } else if (change.status == "partial") {
+            curScore.startCmd();
+            Script.updateTargetsPartially(change.newTargets, change.removedTargets, placementSelector.currentValue);
+            Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), verseSelector.currentValue - 1, placementSelector.currentValue);
+            curScore.endCmd();
+        }
+    }
+
+    FocusScope {
+        id: rootFocusScope
+
         anchors.fill: parent
+
+        onActiveFocusChanged: {
+            if (activeFocus) {
+                syncSelectionState();
+            }
+        }
 
         TextInputField {
             id: lyricsInput
@@ -111,10 +135,16 @@ MuseScore {
             }
         }
 
-        // IME の未確定文字列を含む表示テキストの変化を監視
+        // IME の未確定文字列を含む表示テキストの変化とフォーカス復帰を監視
         Connections {
             id: textInputConnection
             target: null
+
+            function onActiveFocusChanged() {
+                if (target.activeFocus) {
+                    syncSelectionState();
+                }
+            }
 
             function onDisplayTextChanged() {
                 if (lyricsInput.isClearing) {

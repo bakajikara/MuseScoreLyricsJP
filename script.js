@@ -71,6 +71,7 @@ function splitLyrics(inputText) {
 }
 
 // 取消や番数変更時の復元および確定後のカーソル移動に使用する状態管理変数
+let currentTargets = null;
 let originalLyricsByTrack = {};
 let maxScannedTickByTarget = {};
 let lastAppliedVerse = 0;
@@ -139,6 +140,62 @@ function collectInputTargets() {
   }
 
   return targets;
+}
+
+// 編集開始時の選択対象と現在の選択対象を比較し変化の種類を判定
+function evaluateSelectionChange() {
+  if (currentTargets === null) {
+    return { status: "none" };
+  }
+
+  let newTargets = collectInputTargets();
+  let newTargetKeySet = {};
+  for (const target of newTargets) {
+    newTargetKeySet[target.key] = true;
+  }
+
+  let currentTargetKeySet = {};
+  let retainedCount = 0;
+  let removedTargets = [];
+  for (const target of currentTargets) {
+    currentTargetKeySet[target.key] = true;
+    if (newTargetKeySet[target.key]) {
+      retainedCount++;
+    } else {
+      removedTargets.push(target);
+    }
+  }
+
+  let addedCount = 0;
+  for (const target of newTargets) {
+    if (!currentTargetKeySet[target.key]) {
+      addedCount++;
+    }
+  }
+
+  if (retainedCount == 0) {
+    return { status: "reset" };
+  }
+  if (removedTargets.length == 0 && addedCount == 0) {
+    return { status: "unchanged" };
+  }
+  return {
+    status: "partial",
+    newTargets: newTargets,
+    removedTargets: removedTargets,
+  };
+}
+
+// 選択から外れたターゲットの歌詞を復元して一時データを削除し対象リストを更新
+function updateTargetsPartially(newTargets, removedTargets, placement) {
+  if (removedTargets.length > 0) {
+    applyLyricsToTargets(removedTargets, [], lastAppliedVerse, placement);
+    for (const target of removedTargets) {
+      delete maxScannedTickByTarget[target.key];
+      delete nextStartTickByTarget[target.key];
+    }
+  }
+  currentTargets = newTargets;
 }
 
 // 指定された chord から始まるタイの最長 tick 長を取得
@@ -392,32 +449,41 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
   }
 }
 
-// 分割された歌詞リストを現在の選択範囲のトラックに順次適用
+// 分割された歌詞リストを現在の適用対象トラックに順次適用
 function applyLyricsToScore(lyricUnits, verse, placement) {
   lastAppliedVerse = verse;
-  applyLyricsToTargets(collectInputTargets(), lyricUnits, verse, placement);
+  if (currentTargets === null) {
+    currentTargets = collectInputTargets();
+  }
+  applyLyricsToTargets(currentTargets, lyricUnits, verse, placement);
+}
+
+// 編集セッション中の一時状態をリセット
+function resetInputState() {
+  currentTargets = null;
+  nextStartTickByTarget = {};
+  originalLyricsByTrack = {};
+  maxScannedTickByTarget = {};
 }
 
 // 編集前の歌詞をスコアに復元し一時状態をリセット
 function restorePreviousLyrics(nextVerse, placement) {
-  applyLyricsToTargets(collectInputTargets(), [], lastAppliedVerse, placement);
-  nextStartTickByTarget = {};
-  originalLyricsByTrack = {};
-  maxScannedTickByTarget = {};
+  if (currentTargets !== null) {
+    applyLyricsToTargets(currentTargets, [], lastAppliedVerse, placement);
+  }
+  resetInputState();
   lastAppliedVerse = nextVerse;
 }
 
 // 現在の歌詞入力を確定して選択を次の音符へ進め一時状態をリセット
 function confirmInput() {
   moveSelectionToNextNotes();
-  nextStartTickByTarget = {};
-  originalLyricsByTrack = {};
-  maxScannedTickByTarget = {};
+  resetInputState();
 }
 
 // 次の入力開始位置にある chord の最初の音符を選択
 function moveSelectionToNextNotes() {
-  let targets = collectInputTargets();
+  let targets = currentTargets !== null ? currentTargets : collectInputTargets();
 
   curScore.selection.clear();
 
