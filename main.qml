@@ -35,11 +35,48 @@ MuseScore {
 
     onRun: {}
 
+    // 指定要素の子孫から displayText を持つ内部 TextInput を探索
+    function findTextInput(item) {
+        if (!item) {
+            return null;
+        }
+        if (item.displayText !== undefined) {
+            return item;
+        }
+        if (item.children) {
+            for (let i = 0; i < item.children.length; i++) {
+                let found = findTextInput(item.children[i]);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    // 入力欄のテキストを未確定文字列も含めて取得
+    function getCurrentInputText() {
+        if (textInputConnection.target) {
+            return textInputConnection.target.displayText;
+        }
+        return lyricsInput.currentText;
+    }
+
+    // プログラムからのクリア時に反映イベントが走らないよう入力欄を初期化
+    function clearLyricsInput() {
+        lyricsInput.isClearing = true;
+        lyricsInput.clear();
+        lyricsInput.currentText = "";
+        lyricsInput.isClearing = false;
+    }
+
     Item {
         anchors.fill: parent
 
         TextInputField {
             id: lyricsInput
+
+            property bool isClearing: false
 
             anchors.top: parent.top
             anchors.left: parent.left
@@ -50,10 +87,15 @@ MuseScore {
             hint: "ここに歌詞を入力"
 
             Component.onCompleted: {
+                textInputConnection.target = findTextInput(lyricsInput);
                 ensureActiveFocus();
             }
 
+            // 内部 TextInput を取得できない環境向けのフォールバック
             onTextEdited: {
+                if (textInputConnection.target || isClearing) {
+                    return;
+                }
                 currentText = newTextValue;
                 curScore.startCmd();
                 Script.applyLyricsToScore(Script.splitLyrics(newTextValue), verseSelector.currentValue - 1, placementSelector.currentValue);
@@ -64,8 +106,24 @@ MuseScore {
                 curScore.startCmd();
                 Script.confirmInput();
                 curScore.endCmd();
-                clear();
+                clearLyricsInput();
                 Qt.callLater(ensureActiveFocus);
+            }
+        }
+
+        // IME の未確定文字列を含む表示テキストの変化を監視
+        Connections {
+            id: textInputConnection
+            target: null
+
+            function onDisplayTextChanged() {
+                if (lyricsInput.isClearing) {
+                    return;
+                }
+                let text = target.displayText;
+                curScore.startCmd();
+                Script.applyLyricsToScore(Script.splitLyrics(text), verseSelector.currentValue - 1, placementSelector.currentValue);
+                curScore.endCmd();
             }
         }
 
@@ -91,7 +149,7 @@ MuseScore {
                 currentValue = newValue;
                 curScore.startCmd();
                 Script.restorePreviousLyrics(newValue - 1, placementSelector.currentValue);
-                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.currentText), newValue - 1, placementSelector.currentValue);
+                Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), newValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
             }
         }
@@ -116,7 +174,7 @@ MuseScore {
             onActivated: {
                 currentIndex = index;
                 curScore.startCmd();
-                Script.applyLyricsToScore(Script.splitLyrics(lyricsInput.currentText), verseSelector.currentValue - 1, currentValue);
+                Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), verseSelector.currentValue - 1, currentValue);
                 curScore.endCmd();
             }
         }
@@ -136,7 +194,7 @@ MuseScore {
                 curScore.startCmd();
                 Script.restorePreviousLyrics(verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
-                lyricsInput.clear();
+                clearLyricsInput();
             }
         }
 
@@ -156,7 +214,7 @@ MuseScore {
                 curScore.startCmd();
                 Script.confirmInput();
                 curScore.endCmd();
-                lyricsInput.clear();
+                clearLyricsInput();
                 lyricsInput.ensureActiveFocus();
             }
         }
