@@ -243,75 +243,56 @@ function expandEqualSignForSlurOrTie(
   targetIndex,
   shortestSlurTicksMap
 ) {
-  // 等号の位置を基準に前後の文字列を分離
   let equalSignIndex = lyricText.search(/[=＝]/);
   let textBeforeEqual = lyricText.substring(0, equalSignIndex);
   let textAfterEqual = lyricText.substring(equalSignIndex + 1);
-  let resolvedText = lyricText;
-  let nextUnitIndex = unitIndex;
+  let currentTick = cursor.fraction.ticks;
+  let isFirstNote = slurOrTieEndTick == -1;
   let nextSlurOrTieEndTick = slurOrTieEndTick;
 
-  if (nextSlurOrTieEndTick == -1) {
-    // スラーまたはタイの展開開始位置を判定し終了 tick を取得
+  if (isFirstNote) {
+    // 展開開始位置からスラーまたはタイの長さを取得
     let slurOrTieTicks = 0;
-
     if (textBeforeEqual) {
-      // 等号の前に文字がある場合は現在位置から始まるスラーまたはタイを参照
+      slurOrTieTicks = getSlurOrTieTicks(shortestSlurTicksMap, cursor.element, track, currentTick);
+      nextSlurOrTieEndTick = currentTick + slurOrTieTicks;
+    } else if (cursor.prev()) {
       slurOrTieTicks = getSlurOrTieTicks(shortestSlurTicksMap, cursor.element, track, cursor.fraction.ticks);
       nextSlurOrTieEndTick = cursor.fraction.ticks + slurOrTieTicks;
-    } else {
-      // 等号が先頭にある場合は直前のセグメントから始まるスラーまたはタイを参照
-      if (cursor.prev()) {
-        slurOrTieTicks = getSlurOrTieTicks(shortestSlurTicksMap, cursor.element, track, cursor.fraction.ticks);
-        nextSlurOrTieEndTick = cursor.fraction.ticks + slurOrTieTicks;
-        cursor.next();
-      }
+      cursor.next();
     }
 
-    if (slurOrTieTicks) {
-      // スラーまたはタイが存在する場合は開始音符に文字を割り当て終了位置まで同じユニットを継続
-      resolvedText = textBeforeEqual || "ー";
-      if (nextSlurOrTieEndTick <= cursor.fraction.ticks) {
-        nextSlurOrTieEndTick = -1;
-      } else {
-        nextUnitIndex--;
-      }
-    } else {
-      // スラーもタイも存在しない場合は等号を長音記号へ置換するか単独の等号をスキップ
-      nextSlurOrTieEndTick = -1;
-      if (textBeforeEqual != "" || textAfterEqual != "") {
-        resolvedText = resolvedText.replace(/[=＝]/g, "ー").replace(/ーー/g, "ー");
-      } else {
-        nextUnitIndex++;
-        if (nextUnitIndex == lyricUnitsLength) {
-          nextStartTickByTarget[targetIndex] = cursor.fraction.ticks;
-        }
+    // スラーもタイも存在しない場合は長音記号へ置換するか単独の等号をスキップ
+    if (!slurOrTieTicks) {
+      if (textBeforeEqual || textAfterEqual) {
         return {
-          lyricText: resolvedText,
-          unitIndex: nextUnitIndex,
-          slurOrTieEndTick: nextSlurOrTieEndTick,
-          skipped: true,
+          lyricText: lyricText.replace(/[=＝]/g, "ー").replace(/ーー+/g, "ー"),
+          unitIndex: unitIndex,
+          slurOrTieEndTick: -1,
+          skipped: false,
         };
       }
+
+      let nextUnitIndex = unitIndex + 1;
+      if (nextUnitIndex == lyricUnitsLength) {
+        nextStartTickByTarget[targetIndex] = currentTick;
+      }
+      return {
+        unitIndex: nextUnitIndex,
+        skipped: true,
+      };
     }
-  } else if (cursor.fraction.ticks >= nextSlurOrTieEndTick) {
-    // スラーまたはタイの終了位置に到達したら展開状態を解除し後続文字列があれば結合
-    nextSlurOrTieEndTick = -1;
-    if (textAfterEqual) {
-      resolvedText = textBeforeEqual ? textAfterEqual : "ー" + textAfterEqual;
-    } else {
-      resolvedText = "ー";
-    }
-  } else {
-    // スラーまたはタイの途中では長音記号を割り当てて同じユニットを維持
-    resolvedText = "ー";
-    nextUnitIndex--;
   }
 
+  // 開始音符なら前の文字を、終了音符なら後の文字を長音記号の前後に結合
+  let isLastNote = currentTick >= nextSlurOrTieEndTick;
+  let prefixText = isFirstNote ? textBeforeEqual : "";
+  let suffixText = isLastNote ? textAfterEqual : "";
+
   return {
-    lyricText: resolvedText,
-    unitIndex: nextUnitIndex,
-    slurOrTieEndTick: nextSlurOrTieEndTick,
+    lyricText: prefixText + "ー" + suffixText,
+    unitIndex: isLastNote ? unitIndex : unitIndex - 1,
+    slurOrTieEndTick: isLastNote ? -1 : nextSlurOrTieEndTick,
     skipped: false,
   };
 }
@@ -399,12 +380,12 @@ function applyLyricsToScore(lyricUnits, verse, placement) {
             targetIndex,
             shortestSlurTicksMap
           );
-          lyricText = expansionResult.lyricText;
           unitIndex = expansionResult.unitIndex;
-          slurOrTieEndTick = expansionResult.slurOrTieEndTick;
           if (expansionResult.skipped) {
             continue;
           }
+          lyricText = expansionResult.lyricText;
+          slurOrTieEndTick = expansionResult.slurOrTieEndTick;
         }
 
         applyLyricToChord(cursor, lyricElement, lyricText, verse, placement, lyricState);
