@@ -15,10 +15,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import MuseScore 3.0
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import Muse.UiComponents 1.0
+import QtQuick
+import MuseScore
+import Muse.UiComponents
 import "script.js" as Script
 
 MuseScore {
