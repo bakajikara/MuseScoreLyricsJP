@@ -106,20 +106,25 @@ function collectInputTargets() {
   let targets = [];
   let registeredTargets = {};
 
+  function addTarget(track, startTick) {
+    let targetKey = track + ":" + startTick;
+    if (!registeredTargets[targetKey]) {
+      targets.push({ key: targetKey, track: track, startTick: startTick });
+      registeredTargets[targetKey] = true;
+    }
+  }
+
   if (curScore.selection.isRange) {
     // 範囲選択の場合は選択された各譜表の最初の chord の位置を取得
     let selection = curScore.selection;
     let cursor = curScore.newCursor();
     for (let staff = selection.startStaff; staff < selection.endStaff; staff++) {
       cursor.rewind(Cursor.SELECTION_START);
-      cursor.track = staff * 4;
+      cursor.staffIdx = staff;
+      cursor.voice = 0;
       while (cursor.segment && cursor.fraction.ticks < selection.endSegment.fraction.ticks + 1) {
         if (cursor.element && cursor.element.type == Element.CHORD) {
-          let targetKey = cursor.track + ":" + cursor.fraction.ticks;
-          if (!registeredTargets[targetKey]) {
-            targets.push({ track: cursor.track, startTick: cursor.fraction.ticks });
-            registeredTargets[targetKey] = true;
-          }
+          addTarget(cursor.track, cursor.fraction.ticks);
           break;
         }
         cursor.next();
@@ -129,12 +134,7 @@ function collectInputTargets() {
     // 要素選択の場合は選択されている各要素のトラックと tick を取得
     for (let i in curScore.selection.elements) {
       let element = curScore.selection.elements[i];
-      let startTick = element.fraction.ticks;
-      let targetKey = element.track + ":" + startTick;
-      if (!registeredTargets[targetKey]) {
-        targets.push({ track: element.track, startTick: startTick });
-        registeredTargets[targetKey] = true;
-      }
+      addTarget(element.track, element.fraction.ticks);
     }
   }
 
@@ -172,7 +172,7 @@ function getSlurOrTieTicks(shortestSlurTicksMap, chord, track, startTick) {
   let shortestSlurTicks = shortestSlurTicksMap[key] || 0;
   let longestTieTicks = getLongestTieTicks(chord, startTick);
 
-  return shortestSlurTicks > longestTieTicks ? shortestSlurTicks : longestTieTicks;
+  return Math.max(shortestSlurTicks, longestTieTicks);
 }
 
 // 指定した番数の歌詞要素を取得し同じ番数の歌詞が重複していれば削除
@@ -197,7 +197,7 @@ function findAndDeduplicateLyric(cursor, verse) {
 }
 
 // 上書き前の歌詞データを復元用に保存し走査した最大 tick 位置を更新
-function backupOriginalLyric(targetIndex, track, tick, lyricElement) {
+function backupOriginalLyric(targetKey, track, tick, lyricElement) {
   let scannedEndTick = tick;
 
   if (originalLyricsByTrack[track] === undefined) {
@@ -227,22 +227,13 @@ function backupOriginalLyric(targetIndex, track, tick, lyricElement) {
       originalLyricsByTrack[track][tick] = null;
     }
   }
-  if (maxScannedTickByTarget[targetIndex] === undefined || maxScannedTickByTarget[targetIndex] < scannedEndTick) {
-    maxScannedTickByTarget[targetIndex] = scannedEndTick;
+  if (maxScannedTickByTarget[targetKey] === undefined || maxScannedTickByTarget[targetKey] < scannedEndTick) {
+    maxScannedTickByTarget[targetKey] = scannedEndTick;
   }
 }
 
 // 等号を含む歌詞ユニットをスラーまたはタイの終了位置まで長音記号に展開
-function expandEqualSignForSlurOrTie(
-  cursor,
-  track,
-  lyricText,
-  unitIndex,
-  lyricUnitsLength,
-  slurOrTieEndTick,
-  targetIndex,
-  shortestSlurTicksMap
-) {
+function expandEqualSignForSlurOrTie(cursor, track, lyricText, unitIndex, slurOrTieEndTick, shortestSlurTicksMap) {
   let equalSignIndex = lyricText.search(/[=＝]/);
   let textBeforeEqual = lyricText.substring(0, equalSignIndex);
   let textAfterEqual = lyricText.substring(equalSignIndex + 1);
@@ -273,12 +264,8 @@ function expandEqualSignForSlurOrTie(
         };
       }
 
-      let nextUnitIndex = unitIndex + 1;
-      if (nextUnitIndex == lyricUnitsLength) {
-        nextStartTickByTarget[targetIndex] = currentTick;
-      }
       return {
-        unitIndex: nextUnitIndex,
+        unitIndex: unitIndex + 1,
         skipped: true,
       };
     }
@@ -337,15 +324,15 @@ function applyLyricToChord(cursor, lyricElement, lyricText, verse, placement, ly
   }
 }
 
-// 分割された歌詞リストをスコア上の各対象トラックに順次適用
-function applyLyricsToScore(lyricUnits, verse, placement) {
-  lastAppliedVerse = verse;
-  let targets = collectInputTargets();
-  let shortestSlurTicksMap = buildShortestSlurTicksMap();
-  let targetIndex = 0;
+// 指定されたターゲット一覧に対して歌詞リストを適用
+function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
+  let shortestSlurTicksMap = lyricUnits.length > 0 ? buildShortestSlurTicksMap() : {};
 
   for (const target of targets) {
+    let targetKey = target.key;
     let track = target.track;
+    delete nextStartTickByTarget[targetKey];
+
     let cursor = curScore.newCursor();
     cursor.track = track;
     cursor.rewindToTick(target.startTick);
@@ -359,10 +346,15 @@ function applyLyricsToScore(lyricUnits, verse, placement) {
     };
 
     // 入力歌詞が残っている間または元の歌詞の復元範囲に達するまでセグメントを走査
-    while (cursor.segment && (unitIndex < lyricUnits.length || cursor.fraction.ticks <= maxScannedTickByTarget[targetIndex])) {
+    while (cursor.segment && (unitIndex < lyricUnits.length || cursor.fraction.ticks <= maxScannedTickByTarget[targetKey])) {
+      // すべての入力歌詞を配置し終えた直後のセグメントを確定後の移動先として記録
+      if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && nextStartTickByTarget[targetKey] === undefined) {
+        nextStartTickByTarget[targetKey] = cursor.fraction.ticks;
+      }
+
       if (cursor.element && cursor.element.type == Element.CHORD) {
         let lyricElement = findAndDeduplicateLyric(cursor, verse);
-        backupOriginalLyric(targetIndex, track, cursor.fraction.ticks, lyricElement);
+        backupOriginalLyric(targetKey, track, cursor.fraction.ticks, lyricElement);
 
         // 入力歌詞があればそれを採用し入力が尽きた位置は元の歌詞を復元
         let hasInputLyric = unitIndex < lyricUnits.length;
@@ -375,9 +367,7 @@ function applyLyricsToScore(lyricUnits, verse, placement) {
             track,
             lyricText,
             unitIndex,
-            lyricUnits.length,
             slurOrTieEndTick,
-            targetIndex,
             shortestSlurTicksMap
           );
           unitIndex = expansionResult.unitIndex;
@@ -391,19 +381,26 @@ function applyLyricsToScore(lyricUnits, verse, placement) {
         applyLyricToChord(cursor, lyricElement, lyricText, verse, placement, lyricState);
         unitIndex++;
       }
+
       cursor.next();
-      // すべての入力歌詞を配置し終えた次の位置を確定後の移動先として記録
-      if (unitIndex == lyricUnits.length) {
-        nextStartTickByTarget[targetIndex] = cursor.fraction.ticks;
-      }
     }
-    targetIndex++;
+
+    // 最後のセグメントで入力歌詞を配置し終えた場合の移動先を記録
+    if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && nextStartTickByTarget[targetKey] === undefined) {
+      nextStartTickByTarget[targetKey] = cursor.fraction.ticks;
+    }
   }
+}
+
+// 分割された歌詞リストを現在の選択範囲のトラックに順次適用
+function applyLyricsToScore(lyricUnits, verse, placement) {
+  lastAppliedVerse = verse;
+  applyLyricsToTargets(collectInputTargets(), lyricUnits, verse, placement);
 }
 
 // 編集前の歌詞をスコアに復元し一時状態をリセット
 function restorePreviousLyrics(nextVerse, placement) {
-  applyLyricsToScore([], lastAppliedVerse, placement);
+  applyLyricsToTargets(collectInputTargets(), [], lastAppliedVerse, placement);
   nextStartTickByTarget = {};
   originalLyricsByTrack = {};
   maxScannedTickByTarget = {};
@@ -424,13 +421,12 @@ function moveSelectionToNextNotes() {
 
   curScore.selection.clear();
 
-  let targetIndex = 0;
-
   for (const target of targets) {
     let track = target.track;
+    let nextTick = nextStartTickByTarget[target.key] !== undefined ? nextStartTickByTarget[target.key] : target.startTick;
     let cursor = curScore.newCursor();
     cursor.track = track;
-    cursor.rewindToTick(nextStartTickByTarget[targetIndex] || target.startTick);
+    cursor.rewindToTick(nextTick);
 
     while (cursor.segment && (!cursor.element || cursor.element.type != Element.CHORD)) {
       cursor.next();
@@ -438,7 +434,5 @@ function moveSelectionToNextNotes() {
     if (cursor.segment) {
       curScore.selection.select(cursor.element.notes[0], true);
     }
-
-    targetIndex++;
   }
 }
