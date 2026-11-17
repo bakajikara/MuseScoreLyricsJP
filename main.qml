@@ -62,7 +62,7 @@ MuseScore {
 
             onAccepted: {
                 curScore.startCmd();
-                Script.confirm();
+                Script.confirmInput();
                 curScore.endCmd();
                 clear();
                 Qt.callLater(ensureActiveFocus);
@@ -154,7 +154,7 @@ MuseScore {
 
             onClicked: {
                 curScore.startCmd();
-                Script.confirm();
+                Script.confirmInput();
                 curScore.endCmd();
                 lyricsInput.clear();
                 lyricsInput.ensureActiveFocus();
