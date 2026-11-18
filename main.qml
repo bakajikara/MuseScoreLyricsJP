@@ -35,6 +35,7 @@ MuseScore {
 
     onRun: {
         syncScoreState();
+        Script.showSelectionTargetsInScore();
     }
 
     // 指定要素の子孫から displayText を持つ内部 TextInput を探索
@@ -84,6 +85,7 @@ MuseScore {
             Script.updateTargetsPartially(change.newTargets, change.removedTargets, placementSelector.currentValue);
             Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), verseSelector.currentValue - 1, placementSelector.currentValue);
             curScore.endCmd();
+            Script.showCurrentInputInScore();
         }
     }
 
@@ -125,12 +127,14 @@ MuseScore {
                 curScore.startCmd();
                 Script.applyLyricsToScore(Script.splitLyrics(newTextValue), verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
+                Script.showCurrentInputInScore();
             }
 
             onAccepted: {
                 curScore.startCmd();
                 Script.confirmInput();
                 curScore.endCmd();
+                Script.showSelectionTargetsInScore();
                 clearLyricsInput();
                 Qt.callLater(ensureActiveFocus);
             }
@@ -155,6 +159,7 @@ MuseScore {
                 curScore.startCmd();
                 Script.applyLyricsToScore(Script.splitLyrics(text), verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
+                Script.showCurrentInputInScore();
             }
         }
 
@@ -182,6 +187,7 @@ MuseScore {
                 Script.restorePreviousLyrics(newValue - 1, placementSelector.currentValue);
                 Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), newValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
+                Script.showCurrentInputInScore();
             }
         }
 
@@ -207,6 +213,7 @@ MuseScore {
                 curScore.startCmd();
                 Script.applyLyricsToScore(Script.splitLyrics(getCurrentInputText()), verseSelector.currentValue - 1, currentValue);
                 curScore.endCmd();
+                Script.showCurrentInputInScore();
             }
         }
 
@@ -223,8 +230,9 @@ MuseScore {
 
             onClicked: {
                 curScore.startCmd();
-                Script.restorePreviousLyrics(verseSelector.currentValue - 1, placementSelector.currentValue);
+                let restoredTargets = Script.restorePreviousLyrics(verseSelector.currentValue - 1, placementSelector.currentValue);
                 curScore.endCmd();
+                Script.showTargetsStartInScore(restoredTargets);
                 clearLyricsInput();
             }
         }
@@ -245,6 +253,7 @@ MuseScore {
                 curScore.startCmd();
                 Script.confirmInput();
                 curScore.endCmd();
+                Script.showSelectionTargetsInScore();
                 clearLyricsInput();
                 lyricsInput.ensureActiveFocus();
             }

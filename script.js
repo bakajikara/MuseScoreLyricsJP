@@ -75,7 +75,8 @@ let currentTargets = null;
 let originalLyricsByTrack = {};
 let maxScannedTickByTarget = {};
 let lastAppliedVerse = 0;
-let nextStartTickByTarget = {};
+let confirmTickByTarget = {};
+let inputTailTickByTarget = {};
 let shortestSlurTicksMapCache = null;
 
 // スラーキャッシュを破棄
@@ -206,7 +207,8 @@ function updateTargetsPartially(newTargets, removedTargets, placement) {
     applyLyricsToTargets(removedTargets, [], lastAppliedVerse, placement);
     for (const target of removedTargets) {
       delete maxScannedTickByTarget[target.key];
-      delete nextStartTickByTarget[target.key];
+      delete confirmTickByTarget[target.key];
+      delete inputTailTickByTarget[target.key];
     }
   }
   currentTargets = newTargets;
@@ -400,7 +402,8 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
   for (const target of targets) {
     let targetKey = target.key;
     let track = target.track;
-    delete nextStartTickByTarget[targetKey];
+    delete confirmTickByTarget[targetKey];
+    delete inputTailTickByTarget[targetKey];
 
     let cursor = curScore.newCursor();
     cursor.track = track;
@@ -417,8 +420,8 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
     // 入力歌詞が残っている間または元の歌詞の復元範囲に達するまでセグメントを走査
     while (cursor.segment && (unitIndex < lyricUnits.length || cursor.fraction.ticks <= maxScannedTickByTarget[targetKey])) {
       // すべての入力歌詞を配置し終えた直後のセグメントを確定後の移動先として記録
-      if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && nextStartTickByTarget[targetKey] === undefined) {
-        nextStartTickByTarget[targetKey] = cursor.fraction.ticks;
+      if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && confirmTickByTarget[targetKey] === undefined) {
+        confirmTickByTarget[targetKey] = cursor.fraction.ticks;
       }
 
       if (cursor.element && cursor.element.type == Element.CHORD) {
@@ -447,6 +450,9 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
         }
 
         applyLyricToChord(cursor, lyricElement, lyricText, verse, placement, lyricState);
+        if (hasInputLyric) {
+          inputTailTickByTarget[targetKey] = cursor.fraction.ticks;
+        }
         unitIndex++;
       }
 
@@ -454,8 +460,8 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
     }
 
     // 最後のセグメントで入力歌詞を配置し終えた場合の移動先を記録
-    if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && nextStartTickByTarget[targetKey] === undefined) {
-      nextStartTickByTarget[targetKey] = cursor.fraction.ticks;
+    if (lyricUnits.length > 0 && unitIndex == lyricUnits.length && confirmTickByTarget[targetKey] === undefined) {
+      confirmTickByTarget[targetKey] = cursor.fraction.ticks;
     }
   }
 }
@@ -472,18 +478,21 @@ function applyLyricsToScore(lyricUnits, verse, placement) {
 // 編集セッション中の一時状態をリセット
 function resetInputState() {
   currentTargets = null;
-  nextStartTickByTarget = {};
+  confirmTickByTarget = {};
+  inputTailTickByTarget = {};
   originalLyricsByTrack = {};
   maxScannedTickByTarget = {};
 }
 
-// 編集前の歌詞をスコアに復元し一時状態をリセット
+// 編集前の歌詞をスコアに復元し一時状態をリセットして復元対象を返す
 function restorePreviousLyrics(nextVerse, placement) {
-  if (currentTargets !== null) {
-    applyLyricsToTargets(currentTargets, [], lastAppliedVerse, placement);
+  let restoredTargets = currentTargets !== null ? currentTargets : [];
+  if (restoredTargets.length > 0) {
+    applyLyricsToTargets(restoredTargets, [], lastAppliedVerse, placement);
   }
   resetInputState();
   lastAppliedVerse = nextVerse;
+  return restoredTargets;
 }
 
 // 現在の歌詞入力を確定して選択を次の音符へ進め一時状態をリセット
@@ -500,7 +509,7 @@ function moveSelectionToNextNotes() {
 
   for (const target of targets) {
     let track = target.track;
-    let nextTick = nextStartTickByTarget[target.key] !== undefined ? nextStartTickByTarget[target.key] : target.startTick;
+    let nextTick = confirmTickByTarget[target.key] !== undefined ? confirmTickByTarget[target.key] : target.startTick;
     let cursor = curScore.newCursor();
     cursor.track = track;
     cursor.rewindToTick(nextTick);
@@ -512,4 +521,53 @@ function moveSelectionToNextNotes() {
       curScore.selection.select(cursor.element.notes[0], true);
     }
   }
+}
+
+// 指定されたターゲット群の最も進んでいる tick にある音符が画面内に収まるようスクロール
+function showTargetsPositionInScore(targets, tickByTarget) {
+  if (!targets || targets.length == 0) {
+    return;
+  }
+
+  let anchorTarget = null;
+  let anchorTick = -1;
+
+  for (const target of targets) {
+    let targetTick = tickByTarget && tickByTarget[target.key] !== undefined ? tickByTarget[target.key] : target.startTick;
+    if (targetTick > anchorTick || (targetTick == anchorTick && anchorTarget !== null && target.track < anchorTarget.track)) {
+      anchorTick = targetTick;
+      anchorTarget = target;
+    }
+  }
+
+  if (anchorTarget === null) {
+    return;
+  }
+
+  let cursor = curScore.newCursor();
+  cursor.track = anchorTarget.track;
+  cursor.rewindToTick(anchorTick);
+
+  while (cursor.segment && (!cursor.element || cursor.element.type != Element.CHORD)) {
+    cursor.next();
+  }
+  if (cursor.segment && cursor.element.notes.length > 0) {
+    curScore.showElementInScore(cursor.element.notes[0], cursor.staffIdx);
+  }
+}
+
+// 入力中の末尾音符が画面内に収まるようスクロール
+function showCurrentInputInScore() {
+  let targets = currentTargets !== null ? currentTargets : collectInputTargets();
+  showTargetsPositionInScore(targets, inputTailTickByTarget);
+}
+
+// 指定されたターゲット群の入力開始位置が画面内に収まるようスクロール
+function showTargetsStartInScore(targets) {
+  showTargetsPositionInScore(targets, null);
+}
+
+// 現在の選択対象から算出される最初の歌詞入力位置が画面内に収まるようスクロール
+function showSelectionTargetsInScore() {
+  showTargetsPositionInScore(collectInputTargets(), null);
 }
