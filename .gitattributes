@@ -2,4 +2,3 @@
 .gitignore export-ignore
 images/ export-ignore
 README.md export-ignore
-LICENSE export-ignore
