@@ -76,6 +76,12 @@ let originalLyricsByTrack = {};
 let maxScannedTickByTarget = {};
 let lastAppliedVerse = 0;
 let nextStartTickByTarget = {};
+let shortestSlurTicksMapCache = null;
+
+// スラーキャッシュを破棄
+function invalidateSlurCache() {
+  shortestSlurTicksMapCache = null;
+}
 
 // スコア全体のスラーを走査して開始位置ごとの最短 tick 長のマップを作成
 function buildShortestSlurTicksMap() {
@@ -100,6 +106,14 @@ function buildShortestSlurTicksMap() {
   }
 
   return shortestSlurTicksMap;
+}
+
+// スラー開始位置ごとの最短 tick 長マップをキャッシュから取得または構築
+function getShortestSlurTicksMap() {
+  if (shortestSlurTicksMapCache === null) {
+    shortestSlurTicksMapCache = buildShortestSlurTicksMap();
+  }
+  return shortestSlurTicksMapCache;
 }
 
 // 現在のスコア選択状態から処理対象のトラック番号と開始 tick を重複なく取得
@@ -224,9 +238,9 @@ function getLongestTieTicks(chord, startTick) {
 }
 
 // 指定された chord と開始 tick から始まるスラーまたはタイの tick 長を取得
-function getSlurOrTieTicks(shortestSlurTicksMap, chord, track, startTick) {
+function getSlurOrTieTicks(chord, track, startTick) {
   let key = track + ":" + startTick;
-  let shortestSlurTicks = shortestSlurTicksMap[key] || 0;
+  let shortestSlurTicks = getShortestSlurTicksMap()[key] || 0;
   let longestTieTicks = getLongestTieTicks(chord, startTick);
 
   return Math.max(shortestSlurTicks, longestTieTicks);
@@ -290,7 +304,7 @@ function backupOriginalLyric(targetKey, track, tick, lyricElement) {
 }
 
 // 等号を含む歌詞ユニットをスラーまたはタイの終了位置まで長音記号に展開
-function expandEqualSignForSlurOrTie(cursor, track, lyricText, unitIndex, slurOrTieEndTick, shortestSlurTicksMap) {
+function expandEqualSignForSlurOrTie(cursor, track, lyricText, unitIndex, slurOrTieEndTick) {
   let equalSignIndex = lyricText.search(/[=＝]/);
   let textBeforeEqual = lyricText.substring(0, equalSignIndex);
   let textAfterEqual = lyricText.substring(equalSignIndex + 1);
@@ -302,10 +316,10 @@ function expandEqualSignForSlurOrTie(cursor, track, lyricText, unitIndex, slurOr
     // 展開開始位置からスラーまたはタイの長さを取得
     let slurOrTieTicks = 0;
     if (textBeforeEqual) {
-      slurOrTieTicks = getSlurOrTieTicks(shortestSlurTicksMap, cursor.element, track, currentTick);
+      slurOrTieTicks = getSlurOrTieTicks(cursor.element, track, currentTick);
       nextSlurOrTieEndTick = currentTick + slurOrTieTicks;
     } else if (cursor.prev()) {
-      slurOrTieTicks = getSlurOrTieTicks(shortestSlurTicksMap, cursor.element, track, cursor.fraction.ticks);
+      slurOrTieTicks = getSlurOrTieTicks(cursor.element, track, cursor.fraction.ticks);
       nextSlurOrTieEndTick = cursor.fraction.ticks + slurOrTieTicks;
       cursor.next();
     }
@@ -383,8 +397,6 @@ function applyLyricToChord(cursor, lyricElement, lyricText, verse, placement, ly
 
 // 指定されたターゲット一覧に対して歌詞リストを適用
 function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
-  let shortestSlurTicksMap = lyricUnits.length > 0 ? buildShortestSlurTicksMap() : {};
-
   for (const target of targets) {
     let targetKey = target.key;
     let track = target.track;
@@ -424,8 +436,7 @@ function applyLyricsToTargets(targets, lyricUnits, verse, placement) {
             track,
             lyricText,
             unitIndex,
-            slurOrTieEndTick,
-            shortestSlurTicksMap
+            slurOrTieEndTick
           );
           unitIndex = expansionResult.unitIndex;
           if (expansionResult.skipped) {

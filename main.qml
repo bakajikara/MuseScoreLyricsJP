@@ -34,7 +34,7 @@ MuseScore {
     height: 64
 
     onRun: {
-        syncSelectionState();
+        syncScoreState();
     }
 
     // 指定要素の子孫から displayText を持つ内部 TextInput を探索
@@ -72,8 +72,9 @@ MuseScore {
         lyricsInput.isClearing = false;
     }
 
-    // フォーカス復帰や実行時に選択対象の変化を検知して状態を同期
-    function syncSelectionState() {
+    // フォーカス復帰や実行時にスコア側の変更と状態を同期
+    function syncScoreState() {
+        Script.invalidateSlurCache();
         let change = Script.evaluateSelectionChange();
         if (change.status == "reset") {
             Script.resetInputState();
@@ -93,7 +94,7 @@ MuseScore {
 
         onActiveFocusChanged: {
             if (activeFocus) {
-                syncSelectionState();
+                syncScoreState();
             }
         }
 
@@ -142,7 +143,7 @@ MuseScore {
 
             function onActiveFocusChanged() {
                 if (target.activeFocus) {
-                    syncSelectionState();
+                    syncScoreState();
                 }
             }
 
