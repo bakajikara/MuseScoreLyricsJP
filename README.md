@@ -34,3 +34,6 @@ MuseScore Studio で日本語の歌詞入力作業を効率化するためのプ
 #### スマート音引き
 音引きの代わりに `=` を入力すると、スラーまたはタイが終了する音符まで自動で音引きが入力されます。
 ![smart-onbiki](/images/smart-onbiki.gif)
+
+## 不具合報告・機能要望
+不具合の報告や機能のご要望は、[GitHub Issues](https://github.com/bakajikara/mss-jp-lyrics/issues) までお寄せください。
