@@ -24,7 +24,7 @@ import "updater.js" as Updater
 MuseScore {
     id: root
 
-    version: "1.2.0"
+    version: "1.2.1"
     description: "日本語の歌詞入力を簡単に行うためのプラグインです。"
     title: "日本語歌詞入力"
     categoryCode: "lyrics"
